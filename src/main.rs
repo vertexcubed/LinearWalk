@@ -1,6 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap};
 use crate::combinator::*;
 
+
+#[allow(dead_code)]
 mod combinator;
 
 type Identifier = String;
@@ -112,6 +114,7 @@ fn walk<'src>(env: Env<'src>, expr: &'src Expr) -> Value<'src> {
 
 
 fn main() {
+    println!("Starting...");
 
 
     //  let rec factorial n =
@@ -130,7 +133,7 @@ fn main() {
                 var("n").mul(
                     app(
                         var("factorial"),
-                        var("n").sub(num(1))
+                        var("n").sub(num(1)),
                     )
                 )
             )
@@ -140,8 +143,6 @@ fn main() {
         )
     );
 
-    println!("Ast: {:?}", ast);
-
     let env = Env::default();
-    println!("{:?}", walk(env, &ast));
+    println!("Value: {:?}", walk(env, &ast));
 }

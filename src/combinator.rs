@@ -1,6 +1,6 @@
 use crate::{Bop, Expr, Literal};
 
-
+// Simple combinators used for making ASTs by hand
 
 
 pub fn var(name: &str) -> Expr {

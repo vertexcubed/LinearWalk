@@ -1,4 +1,5 @@
 use std::collections::{HashMap};
+use std::time::Instant;
 use crate::combinator::*;
 
 
@@ -115,26 +116,16 @@ fn walk<'src>(env: Env<'src>, expr: &'src Expr) -> Value<'src> {
 }
 
 
-enum Instruction<'src> {
-    ReadExpr(&'src Expr),
-    DoBinOp(Bop),
-    DoIf(&'src Expr, &'src Expr),
-    Bind(Identifier),
-    PopEnv,
-    Apply,
-}
-
 #[derive(Debug, Clone)]
 struct InterpreterSettings {
     instr_stack_max: usize,
     op_stack_max: usize,
     env_stack_max: usize,
 }
+
 const INSTR_STACK_BYTES: usize = 1024 * 1024 * 2;
 const OP_STACK_BYTES: usize = 1024 * 1024 * 2;
 const ENV_STACK_MAX: usize = 1024 * 1024 * 2;
-
-
 impl Default for InterpreterSettings {
     fn default() -> Self {
         Self {
@@ -154,6 +145,16 @@ enum InterpError {
     OpStackOverflow,
     #[error("Too many environments")]
     EnvStackOverflow,
+}
+
+
+enum Instruction<'src> {
+    ReadExpr(&'src Expr),
+    DoBinOp(Bop),
+    DoIf(&'src Expr, &'src Expr),
+    Bind(Identifier),
+    PopEnv,
+    Apply,
 }
 
 
@@ -343,7 +344,6 @@ fn basic_math() {
 
 fn factorial() {
 
-
     //  let rec factorial n =
     //      if n <= 1 then
     //          1
@@ -365,14 +365,83 @@ fn factorial() {
                 )
             )
         ),
-        let_("a", app(var("factorial"), num(10)),
+        let_("a", app(var("factorial"), num(20)),
              var("a")
         )
     );
 
+    // println!("{:?}", walk(Env::default(), &ast));
 
     let mut interpreter = Interpreter::default();
-    println!("{:?}", ast);
+    if let Err(e) = interpreter.run(&ast) {
+        println!("Error while running: {}", e);
+        return;
+    };
+    // our final value *should* be the last thing on the operand stack
+    println!("Value: {:?}", interpreter.pop_value());
+}
+
+
+fn fib() {
+
+    //  let rec fib n =
+    //      if n <= 1 then 1
+    //      else
+    //          (fib (n - 1)) + (fib (n - 2))
+
+    let ast = let_(
+        "fib",
+        func(Some("fib"), "n",
+             if_(
+                 var("n").lte(num(1)),
+                    var("n")
+                 ,
+                 app(
+                     var("fib"), var("n").sub(num(1))
+                 ).add(app(
+                     var("fib"), var("n").sub(num(2))
+                 )),
+             )
+        ),
+        app(var("fib"), num(30))
+    );
+
+    // println!("{:?}", walk(Env::default(), &ast));
+    // return;
+
+
+    let mut interpreter = Interpreter::default();
+    if let Err(e) = interpreter.run(&ast) {
+        println!("Error while running: {}", e);
+        return;
+    };
+    // our final value *should* be the last thing on the operand stack
+    println!("Value: {:?}", interpreter.pop_value());
+}
+
+
+
+
+fn bottom_up_fib() {
+    let ast = let_("fib", func(None, "n",
+            if_(var("n").lte(num(1)),
+                //then
+                var("n"),
+                //else
+                let_("go", func(Some("go"), "n_two", func(None, "n_one", func(None, "i",
+                    if_(var("i").eq(var("n")),
+                        var("n_one").add(var("n_two")),
+                        app(app(app(var("go"), var("n_one")), (var("n_two").add(var("n_one")))), (var("i").add(num(1))))
+                    )
+                ))),
+                     app(app(app(var("go"), num(0)), num(1)), num(2))
+                )
+            )
+        ),
+        app(var("fib"), num(30))
+    );
+
+    let mut interpreter = Interpreter::default();
     if let Err(e) = interpreter.run(&ast) {
         println!("Error while running: {}", e);
         return;
@@ -384,5 +453,8 @@ fn factorial() {
 
 fn main() {
     println!("Starting...");
-    factorial();
+    let now = Instant::now();
+    fib();
+    let time = now.elapsed().as_secs_f64() * 1000.0;
+    println!("Took {}ms", time);
 }
